@@ -8,6 +8,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 )
 
@@ -60,6 +61,16 @@ func GetRootEntries(path string) []*Entry {
 	return rootEntries
 }
 
+func isDir(path string) bool {
+	fileInfo, err := os.Stat(path)
+
+	if err != nil {
+		return false
+	}
+
+	return fileInfo.IsDir()
+}
+
 func isUpdate(event fsnotify.Event) bool {
 	return event.Op&fsnotify.Write == fsnotify.Write ||
 	event.Op&fsnotify.Create == fsnotify.Create
@@ -71,51 +82,58 @@ func isRemove(event fsnotify.Event) bool {
 }
 
 func handleEvent(eventsCh chan EntryEvent, event fsnotify.Event) {
+	var action string
+	entry := Entry{Path: event.Name}
+
 	if isUpdate(event) {
-		entry := Entry{Path: event.Name, IsDir: false}
-		entryEvent := NewEntryEvent(ActionUpdate, []*Entry{&entry})
-		eventsCh <- entryEvent
+		entry.IsDir = isDir(event.Name)
+		action = ActionUpdate
 	} else if isRemove(event) {
-		entry := Entry{Path: event.Name}
-		entryEvent := NewEntryEvent(ActionRemove, []*Entry{&entry})
-		eventsCh <- entryEvent
+		action = ActionRemove
+	} else {
+		return
+	}
+
+	entryEvent := NewEntryEvent(action, []*Entry{&entry})
+	eventsCh <- entryEvent
+}
+
+func watchEvents(fswatcher *fsnotify.Watcher, eventsCh chan EntryEvent) {
+	for {
+		select {
+		case fsevent, ok := <- fswatcher.Events:
+
+			if !ok {
+				fmt.Println("not ok")
+				return
+			}
+
+			handleEvent(eventsCh, fsevent)
+
+		case err, ok := <-fswatcher.Errors:
+
+			if !ok {
+				fmt.Println("not ok error")
+				return
+			}
+
+			fmt.Println("error:", err)
+		}
 	}
 }
 
 func Watch(path string, eventsCh chan EntryEvent) {
-	watcher, err := fsnotify.NewWatcher()
+	fswatcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer watcher.Close()
+	defer fswatcher.Close()
 
-	go func() {
-		for {
-			select {
-			case fsevent, ok := <-watcher.Events:
+	go watchEvents(fswatcher, eventsCh)
 
-				if !ok {
-					fmt.Println("not ok")
-					return
-				}
-
-				handleEvent(eventsCh, fsevent)
-
-			case err, ok := <-watcher.Errors:
-				
-				if !ok {
-					fmt.Println("not ok error")
-					return
-				}
-
-				fmt.Println("error:", err)
-			}
-		}
-	}()
-
-	err = watcher.Add(path)
+	err = fswatcher.Add(path)
 
 	if err != nil {
 		log.Fatal(err)
