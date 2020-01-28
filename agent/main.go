@@ -6,19 +6,7 @@ import (
 	"github.com/joaodiogocosta/retext/watcher"
 )
 
-type EntryEvent struct {
-	Action string `json:"name"`
-	Entries []*watcher.Entry `json:"entries"`
-}
-
-func NewEntryEvent(action string, entries []*watcher.Entry) EntryEvent {
-	return EntryEvent{
-		Action: action,
-		Entries: entries,
-	}
-}
-
-func EntryEventToJson(event EntryEvent) []byte {
+func toJson(event interface{}) []byte {
 	message, err := json.Marshal(event)
 
 	if err != nil {
@@ -33,11 +21,14 @@ func main() {
 	conn := client.Connect()
 
 	rootEntries := watcher.GetRootEntries(rootPath)
-	entryEvent := NewEntryEvent(watcher.ActionUpdate, rootEntries)
-	conn.SendCh <- EntryEventToJson(entryEvent)
+	rootEntriesEvent := watcher.NewEntryEvent(watcher.ActionUpdate, rootEntries)
+	conn.SendCh <- toJson(rootEntriesEvent)
 
-	watcher.Watch(rootPath, func(action string, entry watcher.Entry) {
-		entryEvent := NewEntryEvent(action, []*watcher.Entry{&entry})
-		conn.SendCh <- EntryEventToJson(entryEvent)
-	})
+	entryEvents := make(chan watcher.EntryEvent)
+	go func() {
+		for entryEvent := range entryEvents {
+			conn.SendCh <- toJson(entryEvent)
+		}
+	}()
+	watcher.Watch(rootPath, entryEvents)
 }

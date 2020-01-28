@@ -12,13 +12,26 @@ import (
 )
 
 const ActionUpdate = "UPDATE"
+const ActionRemove = "REMOVE"
 
 type Entry struct {
 	Path string `json:"path"`
 	IsDir bool `json:"isDir"`
 }
 
+type EntryEvent struct {
+	Action string `json:"name"`
+	Entries []*Entry `json:"entries"`
+}
+
 var ignored = ".git"
+
+func NewEntryEvent(action string, entries []*Entry) EntryEvent {
+	return EntryEvent{
+		Action: action,
+		Entries: entries,
+	}
+}
 
 func getPath(rootPath string, filename string) string {
 	return filepath.Join(rootPath, filename)
@@ -47,7 +60,29 @@ func GetRootEntries(path string) []*Entry {
 	return rootEntries
 }
 
-func Watch(path string, cb func(string, Entry)) {
+func isUpdate(event fsnotify.Event) bool {
+	return event.Op&fsnotify.Write == fsnotify.Write ||
+	event.Op&fsnotify.Create == fsnotify.Create
+}
+
+func isRemove(event fsnotify.Event) bool {
+	return event.Op&fsnotify.Remove == fsnotify.Remove ||
+	event.Op&fsnotify.Rename == fsnotify.Rename
+}
+
+func handleEvent(eventsCh chan EntryEvent, event fsnotify.Event) {
+	if isUpdate(event) {
+		entry := Entry{Path: event.Name, IsDir: false}
+		entryEvent := NewEntryEvent(ActionUpdate, []*Entry{&entry})
+		eventsCh <- entryEvent
+	} else if isRemove(event) {
+		entry := Entry{Path: event.Name}
+		entryEvent := NewEntryEvent(ActionRemove, []*Entry{&entry})
+		eventsCh <- entryEvent
+	}
+}
+
+func Watch(path string, eventsCh chan EntryEvent) {
 	watcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
@@ -59,17 +94,14 @@ func Watch(path string, cb func(string, Entry)) {
 	go func() {
 		for {
 			select {
-			case event, ok := <-watcher.Events:
+			case fsevent, ok := <-watcher.Events:
 
 				if !ok {
 					fmt.Println("not ok")
 					return
 				}
 
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					entry := Entry{Path: event.Name, IsDir: false}
-					cb(ActionUpdate, entry)
-				}
+				handleEvent(eventsCh, fsevent)
 
 			case err, ok := <-watcher.Errors:
 				
