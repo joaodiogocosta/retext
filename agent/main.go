@@ -2,21 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"time"
 	"github.com/joaodiogocosta/retext/client"
 	"github.com/joaodiogocosta/retext/watcher"
 )
 
-const UPDATE = "UPDATE"
-
 type EntryEvent struct {
-	Name string `json:"name"`
+	Action string `json:"name"`
 	Entries []*watcher.Entry `json:"entries"`
 }
 
-func NewEntryEvent(name string, entries []*watcher.Entry) EntryEvent {
+func NewEntryEvent(action string, entries []*watcher.Entry) EntryEvent {
 	return EntryEvent{
-		Name: name,
+		Action: action,
 		Entries: entries,
 	}
 }
@@ -32,14 +29,15 @@ func EntryEventToJson(event EntryEvent) []byte {
 }
 
 func main() {
+	rootPath := ".."
 	conn := client.Connect()
 
-	rootEntries := watcher.GetRootEntries()
-	entryEvent := NewEntryEvent(UPDATE, rootEntries)
-
+	rootEntries := watcher.GetRootEntries(rootPath)
+	entryEvent := NewEntryEvent(watcher.ActionUpdate, rootEntries)
 	conn.SendCh <- EntryEventToJson(entryEvent)
-	
-	for {
-		time.Sleep(1000 * time.Millisecond)
-	}
+
+	watcher.Watch(rootPath, func(action string, entry watcher.Entry) {
+		entryEvent := NewEntryEvent(action, []*watcher.Entry{&entry})
+		conn.SendCh <- EntryEventToJson(entryEvent)
+	})
 }
