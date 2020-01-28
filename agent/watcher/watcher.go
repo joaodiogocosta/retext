@@ -25,6 +25,7 @@ type EntryEvent struct {
 	Entries []*Entry `json:"entries"`
 }
 
+// TODO: ignore dotfiles by default
 var ignored = ".git"
 
 func NewEntryEvent(action string, entries []*Entry) EntryEvent {

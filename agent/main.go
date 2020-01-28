@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/joaodiogocosta/retext/cli"
 	"github.com/joaodiogocosta/retext/client"
 	"github.com/joaodiogocosta/retext/watcher"
 )
@@ -17,10 +18,10 @@ func toJson(event interface{}) []byte {
 }
 
 func main() {
-	rootPath := ".."
+	args := cli.Parse()
 	conn := client.Connect()
 
-	rootEntries := watcher.GetRootEntries(rootPath)
+	rootEntries := watcher.GetRootEntries(args.RootPath)
 	rootEntriesEvent := watcher.NewEntryEvent(watcher.ActionUpdate, rootEntries)
 	conn.SendCh <- toJson(rootEntriesEvent)
 
@@ -30,5 +31,5 @@ func main() {
 			conn.SendCh <- toJson(entryEvent)
 		}
 	}()
-	watcher.Watch(rootPath, entryEvents)
+	watcher.Watch(args.RootPath, entryEvents)
 }
