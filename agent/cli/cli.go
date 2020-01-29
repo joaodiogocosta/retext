@@ -12,17 +12,18 @@ import (
 
 
 type Args struct {
-	RootPath string
+	RootPaths []string
 }
 
 func Parse() *Args {
 	flag.Parse()
-	rootPath := flag.Arg(0)
+	rootPaths := flag.Args()
 
-	if rootPath == "" {
+	fmt.Println(rootPaths)
+	if len(rootPaths) == 0 {
 		fmt.Println("Please provide a file or directory as argument")
 		os.Exit(0)
 	}
 
-	return &Args{RootPath: rootPath}
+	return &Args{RootPaths: rootPaths}
 }

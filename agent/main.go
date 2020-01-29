@@ -21,7 +21,10 @@ func main() {
 	args := cli.Parse()
 	conn := client.Connect()
 
-	rootEntries := watcher.GetRootEntries(args.RootPath)
+	var rootEntries []*watcher.Entry
+	for _, path := range args.RootPaths {
+		rootEntries = append(rootEntries, watcher.GetRootEntries(path)...)
+	}
 	rootEntriesEvent := watcher.NewEntryEvent(watcher.ActionUpdate, rootEntries)
 	conn.SendCh <- toJson(rootEntriesEvent)
 
@@ -31,5 +34,5 @@ func main() {
 			conn.SendCh <- toJson(entryEvent)
 		}
 	}()
-	watcher.Watch(args.RootPath, entryEvents)
+	watcher.Watch(args.RootPaths, entryEvents)
 }

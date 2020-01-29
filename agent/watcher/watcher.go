@@ -123,7 +123,7 @@ func watchEvents(fswatcher *fsnotify.Watcher, eventsCh chan EntryEvent) {
 	}
 }
 
-func Watch(path string, eventsCh chan EntryEvent) {
+func Watch(paths []string, eventsCh chan EntryEvent) {
 	fswatcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
@@ -134,11 +134,14 @@ func Watch(path string, eventsCh chan EntryEvent) {
 
 	go watchEvents(fswatcher, eventsCh)
 
-	err = fswatcher.Add(path)
+	for _, path := range paths {
+		err = fswatcher.Add(path)
 
-	if err != nil {
-		log.Fatal(err)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+
 	
 	select {}
 }
