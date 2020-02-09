@@ -28,7 +28,7 @@ func preloadTree(conn *client.Connection, rootPaths []string) {
 
 func main() {
 	args := cli.Parse()
-	conn := client.Connect()
+	conn := client.Connect(args.ConnectionAdapter)
 
 	entryEvents := make(chan watcher.EntryEvent)
 	go func() {
