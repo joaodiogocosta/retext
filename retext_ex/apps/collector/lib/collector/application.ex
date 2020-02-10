@@ -5,7 +5,8 @@ defmodule Collector.Application do
 
   def start(_type, _args) do
     children = [
-      websocket_server()
+      websocket_server(),
+      Collector.Sessions
     ]
 
     opts = [strategy: :one_for_one, name: Collector.Supervisor]

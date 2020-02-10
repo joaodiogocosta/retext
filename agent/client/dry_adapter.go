@@ -6,7 +6,7 @@ import (
 
 type ConnDryAdapter struct {}
 
-func (adapter *ConnDryAdapter) Connect(sendCh chan []byte) {
+func (adapter *ConnDryAdapter) Connect(session *Session, sendCh chan []byte) {
 	go func() {
 		for message := range sendCh {
 			fmt.Println(string(message))

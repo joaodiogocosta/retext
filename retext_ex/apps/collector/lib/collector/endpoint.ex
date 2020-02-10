@@ -5,16 +5,18 @@ defmodule Collector.Endpoint do
   """
 
   use Plug.Router
+  alias Collector.Sessions
 
-  # plug(Plug.Logger)
+  plug(Plug.Logger)
   plug(:match)
   plug(:dispatch)
-  # we will only parse the request AFTER there is a route match.
-  # plug(Plug.Parsers, parsers: [:json], json_decoder: Poison)
-  # responsible for dispatching responses
+
+  post "/sessions" do
+    {:ok, id, session} = Sessions.create()
+    send_resp(conn, 200, "#{id}|#{session}")
+  end
 
   match _ do
-    IO.puts("nothing to see")
-    send_resp(conn, 404, "oops... Nothing here :(")
+    send_resp(conn, 404, "Not Found")
   end
 end

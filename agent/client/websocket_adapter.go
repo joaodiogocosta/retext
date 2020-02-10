@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"net/http"
 	"log"
 	"net/url"
 	"time"
@@ -20,12 +21,21 @@ func writeMessage(ws *websocket.Conn, message []byte) error {
 	return ws.WriteMessage(websocket.TextMessage, message)
 }
 
-func (adapter *ConnWsAdapter) Connect(sendCh chan []byte) {
+func (adapter *ConnWsAdapter) Connect(session *Session, sendCh chan []byte) {
+	header := &http.Header{}
+	header.Add("X-Id", session.id)
+	header.Add("X-Token", session.token)
+
 	u := url.URL{Scheme: "ws", Host: "localhost:4001", Path: "/ws"}
-	ws, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	ws, resp, err := websocket.DefaultDialer.Dial(u.String(), *header)
 
 	if err != nil {
 		fmt.Println("dial:", err)
+
+		if resp.StatusCode == 401 {
+			log.Println("Unauthorized")
+			return
+		}
 	}
 
 	defer ws.Close()
